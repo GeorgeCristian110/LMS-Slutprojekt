@@ -69,10 +69,8 @@
                             <span class="lms-icon-tile @(item.EventType == NotificationEventTypes.Feedback ? "lms-tone-info" : "lms-tone-purple")">
                                 @(item.EventType == NotificationEventTypes.Feedback ? "F" : "D")
                             </span>
-
                             <div class="flex-grow-1 min-w-0">
                                 <div class="lms-bell-item-title">@item.Message</div>
-                                @* <div class="lms-bell-item-sub">@item.Subtitle</div>  *@
                                 <div class="lms-bell-item-time">@TimeFormat.Relative(item.CreatedAt)</div>
                             </div>
 
@@ -100,22 +98,59 @@
 
 @code {
     /// <summary> Max number of notifications that is be fetched and show in the dropdown.</summary>
-    private int MaxItems = 10;
+    private static int MaxItems = 10;
+    /// <summary> How often the notifications are refreshed in minutes</summary>
+    private static int RefreshIntervalInMinutes = 1;  // 
 
     private IEnumerable<NotificationDto>? notifications;  // List of the students notifications
     private readonly CancellationTokenSource cto = new();
 
+    /// <summary> Timer used to trigger periodic notification refreshes at the configured interval.</summary>
+    private readonly PeriodicTimer notificationTimer = 
+        new(TimeSpan.FromMinutes(RefreshIntervalInMinutes));
+    /// <summary> Represents the background task that periodically refreshes the notification list.</summary>
+    private Task? notificationRefreshTask;
+
     private string errorMessage = "";  // Not in use - where to show messages?
     private bool isLoading = true;  // Needed by IDisposable!
     private int UnreadCount = 0;  // Number of unread notifications
-
-
 
     protected override async Task OnInitializedAsync()
     {
         isLoading = true;
 
         // Load the users notifications
+        await GetNotifications();
+
+        isLoading = false;
+
+        // Start the periodic refresh of notifications
+        notificationRefreshTask = RefreshNotificationsAsync();
+    }
+
+    /// <summary> Periodically retrieves the latest notifications.</summary>
+    private async Task RefreshNotificationsAsync()
+    {
+        try
+        {
+            while (await notificationTimer.WaitForNextTickAsync(cto.Token))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await GetNotifications();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException) when (cto.IsCancellationRequested)
+        {
+            // The component is being disposed.
+        }
+    }
+
+    /// <summary> Retrieves the latest notifications for the current student and updates the unread count.</summary>
+    private async Task GetNotifications()
+    {
         try
         {
             // "notifications?nbrItems=10" - max number of items to return
@@ -151,7 +186,6 @@
             errorMessage = "The assignments could not be loaded. Please try again later.";
         }
 
-        isLoading = false;
     }
 
     /// <summary> Redirect to target, mark as is read and the notification dropdown is closed</summary>
@@ -255,6 +289,7 @@
     public void Dispose()
     {
         cto.Cancel();
+        notificationTimer.Dispose();
         cto.Dispose();
     }
 }
