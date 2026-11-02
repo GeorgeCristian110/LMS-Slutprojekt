@@ -1,0 +1,102 @@
+name: Deploy
+
+# Deploys to Azure App Service when something is merged into master.
+# "Run workflow" on the Actions tab starts a manual deploy (only master may deploy, see the
+# branch rule on the "production" environment).
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+# Never cancel a deploy halfway; queue the next one instead.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish API
+        run: dotnet publish LMS.API/LMS.API.csproj --configuration Release --output publish/api
+
+      - name: Publish Blazor
+        run: dotnet publish LMS.Blazor/LMS.Blazor/LMS.Blazor.csproj --configuration Release --output publish/web
+
+      - name: Upload API
+        uses: actions/upload-artifact@v7
+        with:
+          name: api
+          path: publish/api
+
+      - name: Upload Blazor
+        uses: actions/upload-artifact@v7
+        with:
+          name: web
+          path: publish/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://lms-grupp2-web.azurewebsites.net
+
+    # id-token: write lets the job ask GitHub for an OIDC token that Azure trusts.
+    # No Azure password is stored in GitHub.
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Download API
+        uses: actions/download-artifact@v8
+        with:
+          name: api
+          path: api
+
+      - name: Download Blazor
+        uses: actions/download-artifact@v8
+        with:
+          name: web
+          path: web
+
+      - name: Log in to Azure
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # API first: it applies the database migrations when it starts.
+      - name: Deploy API
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: lms-grupp2-api
+          package: api
+
+      - name: Deploy Blazor
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: lms-grupp2-web
+          package: web
+
+      # A paused database can take a minute to wake up, so retry for a while.
+      - name: Check that the site responds
+        run: >
+          curl --fail --silent --show-error --location
+          --retry 10 --retry-delay 15 --retry-all-errors
+          --output /dev/null
+          https://lms-grupp2-web.azurewebsites.net/Account/Login
