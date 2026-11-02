@@ -161,30 +161,29 @@ h1:focus {
         color: #374151;
     }
 
-.lms-nav-glyph {
-    width: 20px;
-    height: 20px;
-    border-radius: 5px;
-    background: #e9ecef;
+    .lms-nav-link:focus-visible {
+        outline: 2px solid var(--bs-primary);
+        outline-offset: 2px;
+    }
+
+/* Line icon (NavIcon component). The SVG draws with currentColor, so "color" sets the icon colour */
+.lms-nav-icon {
+    flex-shrink: 0;
     color: var(--bs-secondary-color);
-    font-size: .6875rem;
-    font-weight: 700;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
 }
 
-/* NavLink adds "active" automatically */
+    .lms-nav-link:hover .lms-nav-icon,
+    .lms-nav-link.active .lms-nav-icon {
+        color: inherit;
+    }
+
+/* NavLink adds "active" automatically. The inset shadow draws a bar on the left edge without changing the size */
 .lms-nav-link.active {
     background: var(--lms-primary-subtle);
     color: var(--lms-primary-dark);
     font-weight: 600;
+    box-shadow: inset 3px 0 0 var(--bs-primary);
 }
-
-    .lms-nav-link.active .lms-nav-glyph {
-        background: var(--bs-primary);
-        color: #fff;
-    }
 
 .lms-main {
     flex: 1;
@@ -504,6 +503,11 @@ input[type="radio"]:checked + label.lms-badge.button {
     .lms-nav-link {
         margin: 0;
         white-space: nowrap;
+    }
+
+    /* The menu is a horizontal bar here, so the active bar goes under the link instead of on the left */
+    .lms-nav-link.active {
+        box-shadow: inset 0 -2px 0 var(--bs-primary);
     }
 
     .lms-main {
