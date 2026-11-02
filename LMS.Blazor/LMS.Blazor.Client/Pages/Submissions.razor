@@ -10,7 +10,9 @@
 @* Teacher overview of the hand-ins for one assignment (US10).
    The teacher picks a course and an assignment (AssignmentPicker), then sees one row per student with a status.
    The status cards show how many students have each status and filter the table when clicked.
-   Built with the shared components in Components/. Styling comes from wwwroot/css/lms.css. *@
+   Built with the shared components in Components/. Styling comes from wwwroot/css/lms.css.
+   The page can also be opened with ?courseId=...&assignmentId=... (for example from the dashboard),
+   then that course and assignment are already chosen. *@
 @attribute [Authorize(Roles = UserRoles.Teacher)]
 @implements IDisposable
 
@@ -23,7 +25,9 @@
     <PageHeader Title="Submissions" Subtitle="Check who has submitted, who is late or is missing" />
 
     @*----------Course + assignment----------*@
-    <AssignmentPicker OnAssignmentSelected="OnAssignmentSelectedAsync" />
+    <AssignmentPicker OnAssignmentSelected="OnAssignmentSelectedAsync"
+                      InitialCourseId="CourseId"
+                      InitialAssignmentId="AssignmentId" />
 
     @*----------Overview states----------*@
     @if (selectedAssignmentId is null)
@@ -162,6 +166,14 @@
 </div>
 
 @code {
+    // Optional ?courseId=... and ?assignmentId=... in the address: the course and assignment to choose right away.
+    // They are only passed on to AssignmentPicker.
+    [SupplyParameterFromQuery]
+    public Guid? CourseId { get; set; }
+
+    [SupplyParameterFromQuery]
+    public Guid? AssignmentId { get; set; }
+
     // Those are the four status cards, always shown in this order
     private static readonly string[] StatusOrder =
     [
@@ -259,9 +271,9 @@
             ? "background: var(--lms-nav-bg); color: #fff; padding: 1rem;"
             : "padding: 1rem;";
 
-    //The deadline will be stored as swedish time and shown as it is
-    private static string FormatDateTime(DateTime value) =>
-        value.ToString("ddd d MMM yyyy, HH:mm", CultureInfo.InvariantCulture);
+    //The deadline is Swedish time and shown as it is. The format comes from DateText,
+    //so every page shows the same text for the same time.
+    private static string FormatDateTime(DateTime value) => DateText.WallClock(value);
 
     public void Dispose()
     {

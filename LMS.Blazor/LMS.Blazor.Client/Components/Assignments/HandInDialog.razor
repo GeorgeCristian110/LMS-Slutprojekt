@@ -1,0 +1,51 @@
+﻿@using LMS.Blazor.Client.Pages
+
+@* A dialog that shows the hand-in page (HandIn) on top of the current page, so the student does not leave
+   the list. Used by My assignments.
+   The page header of HandIn is hidden by HandInDialog.razor.css, the dialog has its own title.
+   Usage:
+   <HandInDialog ActivityId="openActivityId" Title="Exercise 1" OnClose="CloseDialogAsync" />
+   Nothing is shown while ActivityId is null. *@
+
+@if (ActivityId is { } activityId)
+{
+    @* Dark background behind the dialog *@
+    <div class="modal-backdrop fade show"></div>
+
+    @* Clicking outside the dialog closes it *@
+    <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true"
+         aria-labelledby="handin-dialog-title" @onclick="CloseAsync">
+
+        @* Clicks inside the dialog must not reach the wrapper above, or the dialog would close.
+           modal-dialog-centered puts the dialog in the middle of the page. *@
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" @onclick="() => { }" @onclick:stopPropagation="true">
+            <div class="modal-content lms-handin-dialog">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="handin-dialog-title">@Title</h2>
+                    <button type="button" class="btn-close" aria-label="Close" @onclick="CloseAsync"></button>
+                </div>
+
+                <div class="modal-body">
+                    @* The existing hand-in page, used as a component *@
+                    <HandIn ActivityId="activityId" />
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    // The assignment to show. Null means that the dialog is closed.
+    [Parameter]
+    public Guid? ActivityId { get; set; }
+
+    // The title in the dialog header, for example the assignment name
+    [Parameter]
+    public string Title { get; set; } = "Hand in";
+
+    // Called when the student closes the dialog (X button or a click outside it)
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private Task CloseAsync() => OnClose.InvokeAsync();
+}

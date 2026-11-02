@@ -8,7 +8,7 @@ public interface IUserRepository
 {
     /// <summary>
     /// One page of users, filtered by search text, role and course (US15).
-    /// Ordered by name, then id, so the pages are stable. Includes CourseUsers.Course.
+    /// Ordered by the sort column (name by default), then id, so the pages are stable. Includes CourseUsers.Course.
     /// </summary>
     Task<PagedResult<ApplicationUser>> GetPageAsync(UserListQuery query);
     Task<ApplicationUser?> FindByIdAsync(string id);

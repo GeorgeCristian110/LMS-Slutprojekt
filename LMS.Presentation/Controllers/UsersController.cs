@@ -19,17 +19,19 @@ public class UsersController(IServiceManager serviceManager) : ControllerBase
     private readonly IServiceManager _serviceManager = serviceManager;
 
     /// <summary>
-    /// GET api/users?search=&amp;role=&amp;courseId=&amp;page=&amp;pageSize= (US15).
+    /// GET api/users?search=&amp;role=&amp;courseId=&amp;sort=&amp;direction=&amp;page=&amp;pageSize= (US15, issue #204).
     /// [FromQuery] binds the query string to UserListQuery; [ApiController] validates its
-    /// DataAnnotations and returns 400 with field errors before this method runs.
+    /// DataAnnotations and its Validate method and returns 400 with field errors before this method runs.
     /// </summary>
     [HttpGet]
     [SwaggerOperation(
         Summary = "List users (paged)",
-        Description = "Returns one page of users with their role and course names, ordered by name. " +
-                      "Optional filters: search (name or email), role, courseId. page starts at 1, pageSize is 1-100.")]
+        Description = "Returns one page of users with their role and course names. " +
+                      "Optional filters: search (name or email), role, courseId. " +
+                      "Optional sort: name, email, role or course (default name), direction asc or desc (default asc). " +
+                      "page starts at 1, pageSize is 1-100.")]
     [SwaggerResponse(StatusCodes.Status200OK, "Users retrieved successfully", typeof(PagedResult<UserDto>))]
-    [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid page, pageSize or search")]
+    [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid page, pageSize, search, sort or direction")]
     public async Task<ActionResult<PagedResult<UserDto>>> GetUsers([FromQuery] UserListQuery query) =>
         Ok(await _serviceManager.UserService.GetPageAsync(query));
 

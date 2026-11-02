@@ -1,0 +1,8 @@
+@inject NavigationManager NavigationManager
+
+@code {
+    // The page lives in the server project (Account/AccessDenied), so a full load is needed,
+    // the same as RedirectToLogin does for Account/Login.
+    protected override void OnInitialized() =>
+        NavigationManager.NavigateTo("Account/AccessDenied", forceLoad: true);
+}

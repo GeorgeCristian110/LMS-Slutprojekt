@@ -1,3 +1,4 @@
+using LMS.Shared.Constants;
 using LMS.Shared.DTOs.CourseDtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -10,7 +11,8 @@ namespace LMS.Presentation.Controllers;
 
 [Route("api/student/course")]
 [ApiController]
-[Authorize(Roles = "Student")]
+// The role name comes from the shared constant, so it cannot drift from the seeded role
+[Authorize(Roles = UserRoles.Student)]
 public class StudentCourseController(IServiceManager serviceManager) : ControllerBase
 {
     private readonly IServiceManager _serviceManager = serviceManager;

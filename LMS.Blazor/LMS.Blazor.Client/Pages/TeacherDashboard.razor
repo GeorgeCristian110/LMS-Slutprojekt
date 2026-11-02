@@ -14,21 +14,19 @@
 @inject IApiProxyClient ApiProxyClient
 @inject NavigationManager NavigationManager
 
+
 @* The teacher's dashboard (US13): what needs the teacher's attention right now, across all courses.
    Data comes from GET api/teacher/dashboard through the BFF proxy (teacher/dashboard).
    The status colours come from SubmissionStatusStyles and the activity type colours from ActivityTypeStyles,
    so every page shows the same colours.
    Deadlines and activity times are Swedish wall-clock time and shown as they are,
-   hand-in times are UTC and shown in local time. *@
+   hand-in times are UTC and shown in local time (both through DateText).
+   The Review / View button of an attention row goes straight to where the teacher needs to be (see LinkOf). *@
 
 <PageTitle>Dashboard</PageTitle>
 
-<PageHeader Title="@Greeting()" Subtitle="@(dashboard is null ? null : TodayText())">
-    <Actions>
-        <a class="btn btn-outline-secondary" href="courses">Upload document</a>
-        <a class="btn btn-primary" href="courses">+ New course</a>
-    </Actions>
-</PageHeader>
+@* No action buttons here: courses and documents are managed on the Courses page *@
+<PageHeader Title="@Greeting()" Subtitle="@(dashboard is null ? null : TodayText())" />
 
 @if (isLoading)
 {
@@ -109,8 +107,9 @@ else if (dashboard is not null)
                             </div>
                             <div class="d-flex align-items-center gap-2">
                                 <StatusBadge Text="@item.Status" Tone="@SubmissionStatusStyles.ToneOf(item.Status)" />
-                                @* The Submissions page lets the teacher pick the assignment and read the files *@
-                                <a class="btn btn-outline-secondary btn-sm" href="submissions">
+                                @* Review opens the hand-in directly. View (nothing handed in) opens the Submissions page
+                                   with the right course and assignment already chosen. *@
+                                <a class="btn btn-outline-secondary btn-sm" href="@LinkOf(item)">
                                     @(item.Status == SubmissionStatus.Missing ? "View" : "Review")
                                 </a>
                             </div>
@@ -272,8 +271,18 @@ else if (dashboard is not null)
         isLoading = false;
     }
 
+   
+
     // "Welcome, Karin". The same greeting as on the student's dashboard (see GreetingText).
     private string Greeting() => GreetingText.For(userName);
+
+    // Where the Review / View button of an attention row goes:
+    // - a hand-in exists: straight to its review page
+    // - nothing handed in (Missing): the Submissions page with this course and assignment already chosen
+    private static string LinkOf(TeacherAttentionItemDto item) =>
+        item.SubmissionId is { } submissionId
+            ? $"submissions/{submissionId}/review"
+            : $"submissions?courseId={item.CourseId}&assignmentId={item.ActivityId}";
 
     // The date in the teacher's own browser, for example "Tuesday 20 October 2026". Only shown after the data is loaded.
     private static string TodayText() =>
@@ -308,22 +317,19 @@ else if (dashboard is not null)
 
     private static string StudentsText(int count) => count == 1 ? "1 student" : $"{count} students";
 
+    // All the formats below come from DateText, so every page shows the same text for the same time.
+
     // Deadlines and activity times are Swedish wall-clock time and shown as they are: "Mon 5 Oct, 17:00"
-    private static string FormatDateTime(DateTime value) =>
-        value.ToString("ddd d MMM, HH:mm", CultureInfo.InvariantCulture);
+    private static string FormatDateTime(DateTime value) => DateText.WallClock(value);
 
-    private static string FormatTime(DateTime value) =>
-        value.ToString("HH:mm", CultureInfo.InvariantCulture);
+    private static string FormatTime(DateTime value) => DateText.Time(value);
 
-    private static string FormatDay(DateTime value) =>
-        value.ToString("ddd d MMM", CultureInfo.InvariantCulture);
+    private static string FormatDay(DateTime value) => DateText.Day(value);
 
-    private static string FormatDate(DateOnly value) =>
-        value.ToString("d MMM yyyy", CultureInfo.InvariantCulture);
+    private static string FormatDate(DateOnly value) => DateText.Date(value);
 
     // Hand-in times are UTC (set by the server), so they are shown in the browser's local time
-    private static string FormatUploaded(DateTime utc) =>
-        utc.ToLocalTime().ToString("d MMM, HH:mm", CultureInfo.InvariantCulture);
+    private static string FormatUploaded(DateTime utc) => DateText.Utc(utc);
 
     public void Dispose()
     {

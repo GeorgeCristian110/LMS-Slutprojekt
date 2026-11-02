@@ -60,7 +60,6 @@
     else if (activities is not null)
     {
         <div class="row g-3">
-
             @* ---------- Activity table (left) ---------- *@
             <div class="col-12 @(showForm || selected is not null ? "col-xl-8" : "col-xl-12")">
                 @if (activities.Count == 0)
@@ -69,13 +68,13 @@
                 }
                 else
                 {
-                    <div class="lms-card lms-card-table">
-
+                    <div class="lms-card mb-3">
                         @* ---------- Filter by type + sort (US15). The list is small and already loaded,
                            so this is done in the browser; no request is sent. ---------- *@
-                        <div class="d-flex flex-wrap align-items-center gap-2 px-3 pt-3">
+                        <div class="d-flex flex-wrap align-items-center gap-2">
                             <select class="form-select form-select-sm w-auto" aria-label="Filter by type"
-                                    value="@(typeFilter?.ToString() ?? string.Empty)" @onchange="OnTypeFilterChanged">
+                                    value="@(typeFilter?.ToString() ?? string.Empty)" @onchange="OnTypeFilterChanged"
+                                    style="min-width: 140px;">
                                 <option value="">All types</option>
                                 @foreach (var type in activityTypes)
                                 {
@@ -84,7 +83,8 @@
                             </select>
 
                             <select class="form-select form-select-sm w-auto" aria-label="Sort by"
-                                    value="@sortBy" @onchange="OnSortChanged">
+                                    value="@sortBy" @onchange="OnSortChanged"
+                                    style="min-width: 140px;">
                                 <option value="@SortByStart">Sort: start time</option>
                                 <option value="@SortByName">Sort: name</option>
                                 <option value="@SortByType">Sort: type</option>
@@ -92,7 +92,9 @@
 
                             <span class="lms-cell-sub ms-auto">@VisibleActivities.Count of @activities.Count shown</span>
                         </div>
+                    </div>
 
+                    <div class="lms-card lms-card-table">
                         @if (VisibleActivities.Count == 0)
                         {
                             <EmptyState Icon="i" Tone="muted" InCard="false" Title="No activities of this type"

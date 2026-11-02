@@ -331,6 +331,42 @@ h1:focus {
         background: var(--lms-row-highlight);
     }
 
+/* Sortable column header (SortableHeader.razor, issue #204).
+   The button takes the look of the header text (uppercase, small, grey), so it does not look like a button. */
+.lms-sort-button {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+
+    .lms-sort-button:hover {
+        color: var(--bs-body-color);
+    }
+
+    .lms-sort-button:focus-visible {
+        outline: 2px solid var(--bs-primary);
+        outline-offset: 2px;
+        border-radius: 2px;
+    }
+
+.lms-sort-arrow {
+    font-size: .7em;
+    opacity: .35;
+}
+
+    .lms-sort-arrow.is-active {
+        opacity: 1;
+        color: var(--bs-primary);
+    }
+
 .lms-cell-title {
     font-weight: 600;
 }

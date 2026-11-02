@@ -1,5 +1,5 @@
-﻿@using System.Globalization
-@using System.Net
+﻿@using System.Net
+@using LMS.Blazor.Client.Helpers
 @using LMS.Blazor.Client.Services.ApiProxy
 @using LMS.Shared.Constants
 @using LMS.Shared.DTOs.ActivityDtos
@@ -140,23 +140,12 @@
         }
     }
 
-    // "Mon 12 Oct"
-    private static string FormatDate(DateTime value) =>
-        value.ToString("ddd d MMM", CultureInfo.InvariantCulture);
-
-    // "09:00"
-    private static string FormatTime(DateTime value) =>
-        value.ToString("HH:mm", CultureInfo.InvariantCulture);
-
-    // "Mon 12 Oct, 09:00"
-    private static string FormatDateTime(DateTime value) =>
-        $"{FormatDate(value)}, {FormatTime(value)}";
-
+    // Activity times are Swedish wall-clock time, shown as they are (the formats come from DateText).
     // Same day: "Mon 12 Oct, 09:00 – 10:00". Several days: "Mon 12 Oct, 09:00 – Wed 14 Oct, 16:00".
     private static string FormatRange(DateTime start, DateTime end) =>
         start.Date == end.Date
-            ? $"{FormatDate(start)}, {FormatTime(start)} – {FormatTime(end)}"
-            : $"{FormatDateTime(start)} – {FormatDateTime(end)}";
+            ? $"{DateText.Day(start)}, {DateText.Time(start)} – {DateText.Time(end)}"
+            : $"{DateText.WallClock(start)} – {DateText.WallClock(end)}";
 
     // Badge colour name per activity type (falls back to muted for unknown types)
     private static string ToneOf(string typeName) => typeName switch

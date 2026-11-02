@@ -341,9 +341,8 @@
             $"Account/Login?returnUrl={Uri.EscapeDataString(NavigationManager.Uri)}",
             forceLoad: true);
 
-    // "Mon 12 Oct, 09:00"
-    private static string FormatDateTime(DateTime value) =>
-        value.ToString("ddd d MMM, HH:mm", CultureInfo.InvariantCulture);
+    // The format comes from DateText, the same on every page: "Mon 12 Oct, 09:00"
+    private static string FormatDateTime(DateTime value) => DateText.WallClock(value);
 
 
     public void Dispose()

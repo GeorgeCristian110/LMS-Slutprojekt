@@ -81,11 +81,22 @@ public class ActivityRepository : IActivityRepository
             .ToListAsync();
     }
 
-    // All assignments with their hand-ins (US13, the teacher dashboard), loaded in one query.
+    // The assignments of the given courses with their hand-ins (US13, the teacher dashboard), loaded in one query.
+    // Only the courses in courseIds (the ones that are running), so assignments of finished courses are not loaded.
     // Each submission brings its Feedbacks (needed by SubmissionStatusCalculator) and its Student (for the name).
     // Module is included so the course of the assignment is known. Read only, so tracking is turned off.
-    public async Task<IEnumerable<Activity>> GetAssignmentsWithSubmissionsAsync(string assignmentTypeName)
+    public async Task<IEnumerable<Activity>> GetAssignmentsWithSubmissionsAsync(
+        string assignmentTypeName, IEnumerable<Guid> courseIds)
     {
+        // A list is needed for Contains to be translated to SQL (IN)
+        var ids = courseIds.ToList();
+
+        // No courses means no assignments: no need to ask the database
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
         return await _context.Activities
             .AsNoTracking()
             .Include(a => a.ActivityType)
@@ -94,7 +105,7 @@ public class ActivityRepository : IActivityRepository
                 .ThenInclude(s => s.Feedbacks)
             .Include(a => a.Submissions)
                 .ThenInclude(s => s.Student)
-            .Where(a => a.ActivityType.Name == assignmentTypeName)
+            .Where(a => a.ActivityType.Name == assignmentTypeName && ids.Contains(a.Module.CourseId))
             .ToListAsync();
     }
 

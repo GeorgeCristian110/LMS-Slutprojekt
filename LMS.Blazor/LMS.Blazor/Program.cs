@@ -1,3 +1,4 @@
+using LMS.Blazor.Client.Services;
 using LMS.Blazor.Components;
 using LMS.Blazor.Extensions;
 using LMS.Blazor.Services.Authentication.Tokens;
@@ -20,6 +21,7 @@ public class Program
         builder.Services.AddBffAuthentication(builder.Configuration);
         builder.Services.AddBffAntiforgery();
         builder.Services.AddRemoteApiProxy(builder.Configuration);
+        builder.Services.AddScoped<SubmissionsSelection>();
 
         var app = builder.Build();
 

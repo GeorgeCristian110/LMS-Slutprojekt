@@ -43,9 +43,11 @@ public interface IActivityRepository
     Task<IEnumerable<Activity>> GetUpcomingAcrossCoursesAsync(DateTime fromCourseTime, int take);
 
     /// <summary>
-    /// Returns every assignment (US13) with its submissions, and for each submission its Feedbacks and Student.
-    /// Module is loaded too, so the course is known. Read only. The activity type name is passed in
-    /// (ActivityTypeNames.Assignment), so the data layer does not need to know the constant.
+    /// Returns the assignments (US13) of the given courses only, each with its submissions, and for each
+    /// submission its Feedbacks and Student. Module is loaded too, so the course is known. Read only.
+    /// The activity type name is passed in (ActivityTypeNames.Assignment), so the data layer does not need
+    /// to know the constant. The course ids are the courses that are running, so assignments of finished
+    /// courses are never loaded. An empty list of ids gives an empty result.
     /// </summary>
-    Task<IEnumerable<Activity>> GetAssignmentsWithSubmissionsAsync(string assignmentTypeName);
+    Task<IEnumerable<Activity>> GetAssignmentsWithSubmissionsAsync(string assignmentTypeName, IEnumerable<Guid> courseIds);
 }

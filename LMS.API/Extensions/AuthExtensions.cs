@@ -62,20 +62,4 @@ public static class AuthExtensions
               policy.RequireAuthenticatedUser();
           });
     }
-
-
-    public static void ConfigureCors(this IServiceCollection services)
-    {
-        //ToDo: Restrict to Blazor BFF
-        services.AddCors(options =>
-        {
-            options.AddDefaultPolicy(policy =>
-            {
-                policy.AllowAnyOrigin()
-                      .AllowAnyMethod()
-                      .AllowAnyHeader();
-            });
-
-        });
-    }
 }

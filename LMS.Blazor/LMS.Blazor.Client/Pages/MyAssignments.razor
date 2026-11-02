@@ -56,11 +56,14 @@ else
         </div>
     </div>
 
-    @* Assignment listing *@
+    @* Assignment listing. Clicking an assignment opens the hand-in in a dialog (OnOpen) *@
     <div class="lms-card lms-card-table">
-        <AssignmentTable Assignments="@filteredAssignments" />
+        <AssignmentTable Assignments="@filteredAssignments" OnOpen="OpenDialog" />
     </div>
 }
+
+@* The hand-in dialog. Nothing is shown while no assignment is open. *@
+<HandInDialog ActivityId="openActivityId" Title="@openActivityName" OnClose="CloseDialogAsync" />
 
 @code {
     private IEnumerable<StudentAssignmentDto>? assignments;
@@ -75,6 +78,10 @@ else
     private int nbrSubmitted = 0;
     private int nbrNotSubmitted = 0;
     private int nbrLate = 0;
+
+    // The assignment that is open in the hand-in dialog (null = the dialog is closed)
+    private Guid? openActivityId;
+    private string openActivityName = "Hand in";
 
     protected override async Task OnInitializedAsync()
     {
@@ -170,6 +177,55 @@ else
         
         var info = $"{courseName} &bull; {countNot} not submitted &bull; {countLate} late";
         return new MarkupString(info);
+    }
+
+    // The student clicked an assignment: open its hand-in in the dialog
+    private void OpenDialog(StudentAssignmentDto assignment)
+    {
+        openActivityName = assignment.ActivityName;
+        openActivityId = assignment.ActivityId;
+    }
+
+    // The student closed the dialog: close it and reload the list, because a hand-in
+    // may have changed the status of the assignment
+    private async Task CloseDialogAsync()
+    {
+        openActivityId = null;
+        await RefreshAsync();
+    }
+
+    // Loads the assignments again without the loading skeleton and keeps the chosen filter.
+    // If the reload fails the list stays as it was.
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            var result = await ApiProxyClient.GetAsync<IEnumerable<StudentAssignmentDto>>(
+                "student/assignments", componentCancellation.Token);
+
+            if (result is null)
+                return;
+
+            assignments = result;
+            SetStatusCounts();
+
+            // Apply the chosen filter to the new list
+            OnFilterChange(new ChangeEventArgs { Value = filterOn });
+        }
+        catch (OperationCanceledException) when (componentCancellation.IsCancellationRequested)
+        {
+            // Navigating away disposes the component and cancels its request.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            NavigationManager.NavigateTo(
+                $"Account/Login?returnUrl={Uri.EscapeDataString(NavigationManager.Uri)}",
+                forceLoad: true);
+        }
+        catch (HttpRequestException)
+        {
+            // Keep showing the old list
+        }
     }
 
     public void Dispose()

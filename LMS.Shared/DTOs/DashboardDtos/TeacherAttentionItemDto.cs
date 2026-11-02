@@ -11,6 +11,8 @@
 /// <param name="Status">Late, Awaiting feedback or Missing.</param>
 /// <param name="SubmittedAt">When the student handed in (UTC). Null when nothing was handed in (Missing).</param>
 /// <param name="Deadline">The assignment deadline as Swedish wall-clock time, shown as it is.</param>
+/// <param name="CourseId">The course of the assignment, used to preselect the course on the Submissions page.</param>
+/// <param name="SubmissionId">The hand-in, used to open the review page directly. Null when nothing was handed in (Missing).</param>
 public sealed record TeacherAttentionItemDto(
     string StudentId,
     string StudentName,
@@ -18,4 +20,6 @@ public sealed record TeacherAttentionItemDto(
     string ActivityName,
     string Status,
     DateTime? SubmittedAt,
-    DateTime Deadline);
+    DateTime Deadline,
+    Guid CourseId,
+    Guid? SubmissionId);

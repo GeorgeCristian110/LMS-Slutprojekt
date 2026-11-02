@@ -17,7 +17,7 @@
             {
                 @foreach (var item in assignments ?? Enumerable.Empty<StudentAssignmentDto>())
                 {
-                    <AssignmentRow Item="@item" />
+                    <AssignmentRow Item="@item" OnOpen="OnOpen" />
                 }
             }
             else
@@ -37,5 +37,9 @@
 @code {
     [Parameter]
     public IEnumerable<StudentAssignmentDto> assignments { get; init; } = null!;
+
+    // Optional: called when the student clicks an assignment name, passed on to every row
+    [Parameter]
+    public EventCallback<StudentAssignmentDto> OnOpen { get; set; }
 
 }

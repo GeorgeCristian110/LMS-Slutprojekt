@@ -29,6 +29,15 @@ public static class ReverseProxyExtensions
                 {
                     var httpContext = transformContext.HttpContext;
 
+                    // Login and refresh hand out a JWT. In the BFF model only the server holds one (the browser
+                    // has a cookie), so these two API paths are never reachable through the proxy.
+                    // RemoteAuthenticationService calls api/auth/* directly on the API, not through here.
+                    if (BlockedPrefixes.Any(prefix => httpContext.Request.Path.StartsWithSegments(prefix)))
+                    {
+                        httpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+                        return;
+                    }
+
                     if (RequiresAntiforgery(httpContext.Request.Method) &&
                         !await HasValidAntiforgeryTokenAsync(httpContext))
                     {
@@ -89,6 +98,8 @@ public static class ReverseProxyExtensions
             return false;
         }
     }
+
+    private static readonly string[] BlockedPrefixes = ["/api/proxy/auth", "/api/proxy/token"];
 
     private static bool RequiresAntiforgery(string method) =>
         !HttpMethods.IsGet(method) &&

@@ -32,6 +32,8 @@
                     <a href="courses">Courses</a> / @(courseName ?? "Course")
                 </Breadcrumb>
                 <Actions>
+                    @* Opens the edit form of this course (the Courses page opens it from ?edit={id}) *@
+                    <a class="btn btn-outline-secondary" href="courses?edit=@CourseId">Edit course</a>
                     @* NEW (US06): link to the course documents *@
                     <a class="btn btn-outline-primary" href="courses/@CourseId/documents">Documents</a>
                     @if (!showForm)
@@ -582,11 +584,11 @@
             $"Account/Login?returnUrl={Uri.EscapeDataString(NavigationManager.Uri)}",
             forceLoad: true);
 
-    private static string FormatShort(DateOnly date) =>
-        date.ToString("d MMM", CultureInfo.InvariantCulture);
+    // The formats come from DateText, so every page shows dates the same way.
+    // Short: "1 Oct" (module list). Long: "1 Oct 2026" (headers and the timeline).
+    private static string FormatShort(DateOnly date) => DateText.ShortDate(date);
 
-    private static string FormatLong(DateOnly date) =>
-        date.ToString("d MMM yyyy", CultureInfo.InvariantCulture);
+    private static string FormatLong(DateOnly date) => DateText.Date(date);
 
     // Length of a module in days (used for the timeline segment width)
     private static int DaysIn(ModuleDto module) =>

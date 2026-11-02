@@ -10,10 +10,9 @@
         <AuthorizeView>
             <Authorized>
                 <div class="lms-topbar-right">
-
+                    @* The notification list with bell icon *@
                     <NotificationBell />
                     <div class="lms-user">
-
                         @* Teachers get a purple avatar, students a blue one *@
                         <span class="lms-avatar @(context.User.IsInRole(UserRoles.Teacher) ? "is-teacher" : "")">
                             @Initials(context.User.Identity?.Name)

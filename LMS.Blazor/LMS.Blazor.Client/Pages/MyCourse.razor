@@ -1,7 +1,8 @@
 @page "/my-course"
 
-@using System.Globalization
 @using System.Net
+@using LMS.Blazor.Client.Helpers
+@using LMS.Shared.Constants
 @using LMS.Shared.DTOs.CourseDtos
 @using LMS.Blazor.Client.Services.ApiProxy
 @using Microsoft.AspNetCore.Authorization
@@ -9,7 +10,8 @@
 @* Student view of the student's own course.
    Built with the shared components in Components/ (PageHeader, LoadingSkeleton, EmptyState, ErrorState).
    Styling comes from wwwroot/css/lms.css. *@
-@attribute [Authorize(Roles = "Student")]
+@* The role name comes from the shared constant, so it cannot drift from the seeded role *@
+@attribute [Authorize(Roles = UserRoles.Student)]
 @implements IDisposable
 
 @inject IApiProxyClient ApiProxyClient
@@ -182,8 +184,8 @@ else if (!string.IsNullOrWhiteSpace(errorMessage))
         isLoading = false;
     }
 
-    private static string FormatDate(DateOnly date) =>
-        date.ToString("d MMM yyyy", CultureInfo.InvariantCulture);
+    // "12 Oct 2026" (the format comes from DateText, like the other pages)
+    private static string FormatDate(DateOnly date) => DateText.Date(date);
 
     // Share of the course period that has passed, clamped to 0-100.
     private static int ProgressPercent(DateOnly start, DateOnly end)

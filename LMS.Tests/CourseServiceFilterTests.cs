@@ -41,7 +41,9 @@ public class CourseServiceFilterTests
     public async Task GetCoursesAsync_KnownStatus_IsPassedThroughWithToday(string? status)
     {
         var query = new CourseListQuery { Search = "net", Status = status };
-        var today = DateOnly.FromDateTime(DateTime.Today);
+
+        // "Today" is today's date in Sweden, the same rule as in CourseService (not the date of the machine's own time zone)
+        var today = DateOnly.FromDateTime(CourseTime.FromUtc(DateTime.UtcNow));
         _courses.Setup(r => r.GetAllCoursesAsync(query, today))
             .ReturnsAsync([new Course { Id = Guid.NewGuid(), Name = ".NET" }]);
 

@@ -46,7 +46,8 @@ public class CourseService(IUnitOfWork unitOfWork) : ICourseService
                 "Invalid status");
 
         // "Today" is decided here, in the service, so the repository stays a pure query and tests can pass any date.
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        // It is today's date in Sweden (like the dashboards), not the date of the server's own time zone.
+        var today = DateOnly.FromDateTime(CourseTime.FromUtc(DateTime.UtcNow));
         var courses = await unitOfWork.Courses.GetAllCoursesAsync(query, today);
 
         // The repository already orders; the mapping runs over the loaded courses.

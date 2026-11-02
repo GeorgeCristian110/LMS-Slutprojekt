@@ -43,6 +43,12 @@
                 <a href="my-course">My course</a><span> / Documents</span>
             }
         </Breadcrumb>
+        <Actions>
+            @if (!showForm && documents is not null)
+            {
+                <button type="button" class="btn btn-primary" @onclick="StartCreate">@(isTeacher ? "+ Upload document" : "+ Share a document")</button>
+            }
+        </Actions>
     </PageHeader>
 
     <SuccessAlert Message="@successMessage" OnDismiss="DismissSuccess" />
@@ -61,13 +67,13 @@
         <div class="row g-3">
 
             @* ---------- Document lists (left) ---------- *@
-            <div class="col-12 col-xl-8">
+            <div class="col-12 @(showForm ? "col-xl-8" : "col-xl-12")">
                 <div class="d-flex flex-column gap-4">
 
                     @if (documents.Count == 0)
                     {
                         <EmptyState Title="No documents yet"
-                                    Description="Share the first document with the form." />
+                                    Description="Share the first document with the button above." />
                     }
                     else
                     {
@@ -93,81 +99,86 @@
             </div>
 
             @* ---------- Upload form (right, teachers and students) ---------- *@
-            <div class="col-12 col-xl-4">
-                <div class="lms-card">
-                    <h2 class="lms-card-title mb-3">@(isTeacher ? "Upload document" : "Share a document")</h2>
+            @if (showForm)
+            {
+                @* Above the list on small screens, so the form opens where the user can see it *@
+                <div class="col-12 col-xl-4 order-first order-xl-last">
+                    <div class="lms-card">
+                        <h2 class="lms-card-title mb-3">@(isTeacher ? "Upload document" : "Share a document")</h2>
 
-                    @if (!string.IsNullOrWhiteSpace(uploadError))
-                    {
-                        <div class="alert alert-danger" role="alert">@uploadError</div>
-                    }
-
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <label class="form-label" for="doc-target">Attach to *</label>
-                            <select id="doc-target" class="form-select" @bind="targetKind">
-                                <option value="@TargetKind.Course">The whole course</option>
-                                <option value="@TargetKind.Module">A module</option>
-                                @* Only teachers can attach documents to activities *@
-                                @if (isTeacher)
-                                {
-                                    <option value="@TargetKind.Activity">An activity</option>
-                                }
-                            </select>
-                        </div>
-
-                        @if (targetKind == TargetKind.Module)
+                        @if (!string.IsNullOrWhiteSpace(uploadError))
                         {
+                            <div class="alert alert-danger" role="alert">@uploadError</div>
+                        }
+
+                        <div class="row g-3">
                             <div class="col-12">
-                                <label class="form-label" for="doc-module">Module *</label>
-                                <select id="doc-module" class="form-select" @bind="selectedModuleId">
-                                    <option value="@Guid.Empty">Select a module</option>
-                                    @foreach (var module in modules)
+                                <label class="form-label" for="doc-target">Attach to *</label>
+                                <select id="doc-target" class="form-select" @bind="targetKind">
+                                    <option value="@TargetKind.Course">The whole course</option>
+                                    <option value="@TargetKind.Module">A module</option>
+                                    @* Only teachers can attach documents to activities *@
+                                    @if (isTeacher)
                                     {
-                                        <option value="@module.Id">@module.Name</option>
+                                        <option value="@TargetKind.Activity">An activity</option>
                                     }
                                 </select>
                             </div>
-                        }
 
-                        @if (isTeacher && targetKind == TargetKind.Activity)
-                        {
+                            @if (targetKind == TargetKind.Module)
+                            {
+                                <div class="col-12">
+                                    <label class="form-label" for="doc-module">Module *</label>
+                                    <select id="doc-module" class="form-select" @bind="selectedModuleId">
+                                        <option value="@Guid.Empty">Select a module</option>
+                                        @foreach (var module in modules)
+                                        {
+                                            <option value="@module.Id">@module.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                            }
+
+                            @if (isTeacher && targetKind == TargetKind.Activity)
+                            {
+                                <div class="col-12">
+                                    <label class="form-label" for="doc-activity">Activity *</label>
+                                    <select id="doc-activity" class="form-select" @bind="selectedActivityId">
+                                        <option value="@Guid.Empty">Select an activity</option>
+                                        @foreach (var module in modules)
+                                        {
+                                            @* Activities are grouped by the module they belong to *@
+                                            <optgroup label="@module.Name">
+                                                @foreach (var activity in ActivitiesOf(module.Id))
+                                                {
+                                                    <option value="@activity.Id">@activity.Name</option>
+                                                }
+                                            </optgroup>
+                                        }
+                                    </select>
+                                </div>
+                            }
+
                             <div class="col-12">
-                                <label class="form-label" for="doc-activity">Activity *</label>
-                                <select id="doc-activity" class="form-select" @bind="selectedActivityId">
-                                    <option value="@Guid.Empty">Select an activity</option>
-                                    @foreach (var module in modules)
-                                    {
-                                        @* Activities are grouped by the module they belong to *@
-                                        <optgroup label="@module.Name">
-                                            @foreach (var activity in ActivitiesOf(module.Id))
-                                            {
-                                                <option value="@activity.Id">@activity.Name</option>
-                                            }
-                                        </optgroup>
-                                    }
-                                </select>
-                            </div>
-                        }
-
-                        <div class="col-12">
-                            <label class="form-label" for="doc-file">File *</label>
-                            @* The key changes after an upload, which clears the chosen file *@
-                            <InputFile @key="fileInputKey" id="doc-file" class="form-control"
-                                       accept="@AcceptedExtensions" OnChange="OnFileSelected" />
-                            <div class="lms-cell-sub mt-1">
-                                PDF, Word, PowerPoint, Excel, text or images. Max @MaxFileSizeMb MB.
+                                <label class="form-label" for="doc-file">File *</label>
+                                @* The key changes after an upload, which clears the chosen file *@
+                                <InputFile @key="fileInputKey" id="doc-file" class="form-control"
+                                accept="@AcceptedExtensions" OnChange="OnFileSelected" />
+                                <div class="lms-cell-sub mt-1">
+                                    PDF, Word, PowerPoint, Excel, text or images. Max @MaxFileSizeMb MB.
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="d-flex justify-content-end gap-2 mt-3">
-                        <button type="button" class="btn btn-primary" disabled="@isUploading" @onclick="UploadAsync">
-                            @(isUploading ? "Uploading..." : "Upload")
-                        </button>
+                        <div class="d-flex justify-content-end gap-2 mt-3">
+                            <button type="button" class="btn btn-outline-secondary" disabled="@isUploading" @onclick="CloseForm">Cancel</button>
+                            <button type="button" class="btn btn-primary" disabled="@isUploading" @onclick="UploadAsync">
+                                @(isUploading ? "Uploading..." : "Upload")
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
+            }
         </div>
     }
 
@@ -197,6 +208,7 @@
     [CascadingParameter]
     private Task<AuthenticationState>? AuthState { get; set; }
 
+    
     private Guid loadedCourseId;
     private bool isTeacher;
     private bool isLoading = true;
@@ -224,6 +236,28 @@
     private DocumentDto? deleting;
     private bool isDeleting;
     private string? deleteError;
+
+    private bool showForm;
+
+    // Show create document form
+    private void StartCreate()
+    {
+        successMessage = null;
+        showForm = true;
+    }
+
+    // Close create document form
+    private void CloseForm()
+    {
+        showForm = false;
+
+        // Closing removes the file input from the page, so the chosen file must be forgotten too
+        selectedFile = null;
+        uploadError = null;
+        targetKind = TargetKind.Course;
+        selectedModuleId = Guid.Empty;
+        selectedActivityId = Guid.Empty;
+    }
 
     // The two lists on the page: material from teachers and documents shared by students
     private List<DocumentDto> CourseMaterial =>
@@ -619,9 +653,8 @@
             ? $"{bytes / 1024d / 1024d:0.#} MB"
             : $"{Math.Max(1, bytes / 1024d):0.#} KB";
 
-    // The API stores UTC, show it in the user's local time
-    private static string FormatDate(DateTime value) =>
-        value.ToLocalTime().ToString("d MMM yyyy, HH:mm", CultureInfo.InvariantCulture);
+    // The API stores UTC. DateText shows it in the user's local time, in the same format as every other page.
+    private static string FormatDate(DateTime value) => DateText.Utc(value);
 
     public void Dispose()
     {

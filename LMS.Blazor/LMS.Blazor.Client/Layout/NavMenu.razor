@@ -1,8 +1,13 @@
 ﻿@using LMS.Shared.Constants
+@implements IDisposable
+@inject NavigationManager NavigationManager
 
 @* Main side menu. The links depend on the role of the logged-in user.
    Styles (lms-sidebar, lms-nav-link, ...) live in wwwroot/css/lms.css.
-   NavLink adds the "active" class automatically for the current page. *@
+   NavLink adds the "active" class automatically for the current page.
+   A few pages have a different URL than their menu item (for example the student's Modules page is
+   courses/{id}/modules). The @attributes on those links keeps the menu item active on such pages,
+   see the code block at the bottom. *@
 <nav class="lms-sidebar" aria-label="Main navigation">
 
     @* Teacher menu. Modules are reached through a course on the Courses page. *@
@@ -12,7 +17,8 @@
         <NavLink class="lms-nav-link" href="teacher-dashboard">
             <span class="lms-nav-glyph">O</span> Dashboard
         </NavLink>
-        <NavLink class="lms-nav-link" href="courses">
+        @* Courses is also active on the activities of a module (modules/{id}/activities) *@
+        <NavLink class="lms-nav-link" href="courses" @attributes="TeacherCoursesExtra()">
             <span class="lms-nav-glyph">C</span> Courses
         </NavLink>
         <NavLink class="lms-nav-link" href="submissions">
@@ -34,14 +40,68 @@
         <NavLink class="lms-nav-link" href="my-course">
             <span class="lms-nav-glyph">C</span> My course
         </NavLink>
-        <NavLink class="lms-nav-link" href="my-modules">
+        @* my-modules redirects to courses/{id}/modules, so Modules is active there too *@
+        <NavLink class="lms-nav-link" href="my-modules" @attributes="StudentModulesExtra()">
             <span class="lms-nav-glyph">M</span> Modules
         </NavLink>
-        <NavLink class="lms-nav-link" href="my-documents">
+        @* my-documents redirects to courses/{id}/documents, so Documents is active there too *@
+        <NavLink class="lms-nav-link" href="my-documents" @attributes="StudentDocumentsExtra()">
             <span class="lms-nav-glyph">D</span> Documents
         </NavLink>
-        <NavLink class="lms-nav-link" href="my-assignments">
+        @* Assignments is also active on the hand-in page (assignments/{id}) *@
+        <NavLink class="lms-nav-link" href="my-assignments" @attributes="StudentAssignmentsExtra()">
             <span class="lms-nav-glyph">A</span> Assignments
         </NavLink>
     </AuthorizeView>
 </nav>
+
+@code {
+    // The menu is re-rendered on every navigation, so the extra active state follows the current page
+    protected override void OnInitialized() =>
+        NavigationManager.LocationChanged += OnLocationChanged;
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e) =>
+        StateHasChanged();
+
+    public void Dispose() =>
+        NavigationManager.LocationChanged -= OnLocationChanged;
+
+    // The current page as segments, without query string and fragment: "courses/{id}/modules" => 3 segments
+    private string[] Segments()
+    {
+        var path = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        var end = path.IndexOfAny(['?', '#']);
+        if (end >= 0)
+            path = path[..end];
+
+        return path.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+    }
+
+    // True for courses/{id}/{last}, for example courses/{id}/modules
+    private bool IsCoursePage(string last)
+    {
+        var parts = Segments();
+        return parts.Length == 3 && parts[0] == "courses" && parts[2] == last;
+    }
+
+    // NavLink already adds "active" for its own href. When one of the extra pages is open, this returns a class
+    // that includes "active" (it replaces the plain class); otherwise it returns nothing and NavLink decides.
+    private static Dictionary<string, object> ActiveWhen(bool isActive) =>
+        isActive
+            ? new Dictionary<string, object> { ["class"] = "lms-nav-link active" }
+            : new Dictionary<string, object>();
+
+    // Student: the modules of the student's course (courses/{id}/modules)
+    private Dictionary<string, object> StudentModulesExtra() => ActiveWhen(IsCoursePage("modules"));
+
+    // Student: the documents of the student's course (courses/{id}/documents)
+    private Dictionary<string, object> StudentDocumentsExtra() => ActiveWhen(IsCoursePage("documents"));
+
+    // Student: the hand-in page of an assignment (assignments/{id})
+    private Dictionary<string, object> StudentAssignmentsExtra() =>
+        ActiveWhen(Segments() is ["assignments", _]);
+
+    // Teacher: the activities of a module (modules/{id}/activities)
+    private Dictionary<string, object> TeacherCoursesExtra() =>
+        ActiveWhen(Segments() is ["modules", _, "activities"]);
+}

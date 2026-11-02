@@ -1,0 +1,15 @@
+﻿/* CSS for the HandInDialog component */
+
+/* The hand-in page inside the dialog has its own header (title and breadcrumb "My modules / Hand in").
+   The dialog has a title of its own, so that header is hidden here.
+   ::deep is needed because the header belongs to the child component (HandIn). */
+.lms-handin-dialog ::deep .lms-page-header {
+    display: none;
+}
+
+/* The hand-in page has two columns (status and files, hand in a file). The dialog is narrow,
+   so the columns are shown under each other instead. */
+.lms-handin-dialog ::deep .row > [class*="col-"] {
+    flex: 0 0 100%;
+    max-width: 100%;
+}

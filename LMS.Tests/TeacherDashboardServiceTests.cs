@@ -63,8 +63,13 @@ public class TeacherDashboardServiceTests
                     .OrderBy(m => m.StartDate)
                     .ToList());
 
-        _activities.Setup(r => r.GetAssignmentsWithSubmissionsAsync(ActivityTypeNames.Assignment))
-            .ReturnsAsync(_assignments);
+        // The assignments of the asked-for courses only (like the real repository)
+        _activities.Setup(r => r.GetAssignmentsWithSubmissionsAsync(
+                ActivityTypeNames.Assignment, It.IsAny<IEnumerable<Guid>>()))
+            .ReturnsAsync((string type, IEnumerable<Guid> ids) =>
+                (IEnumerable<Activity>)_assignments
+                    .Where(a => ids.Contains(a.Module.CourseId))
+                    .ToList());
         _activities.Setup(r => r.GetUpcomingAcrossCoursesAsync(It.IsAny<DateTime>(), It.IsAny<int>()))
             .ReturnsAsync(_upcoming);
 

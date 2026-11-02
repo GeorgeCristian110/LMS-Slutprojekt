@@ -1,0 +1,49 @@
+@* Reusable table header cell that sorts its column when clicked (issue #204).
+   Replaces a plain <th> in the <thead> of a table.
+
+   How it is used:
+   The page keeps a TableSort (Helpers/TableSort.cs) with the active column and direction and passes it in.
+   A click raises OnSort with this header's Column. The page then calls sort.Toggle(column) and either
+   sorts its rows again (a list loaded whole) or asks the API for the new order (the paged Users list).
+   Like Pagination, this component never changes the sort itself and never talks to the API.
+
+   Usage:
+   <SortableHeader Title="Name" Column="@UserSortColumns.Name" Sort="@sort" OnSort="SortByAsync" />
+
+   Styling: lms-sort-button and lms-sort-arrow in wwwroot/css/lms.css. *@
+
+@* aria-sort tells a screen reader that the table is sorted by this column, and how.
+   Blazor leaves the attribute out when the value is null, so only the active column has it. *@
+<th aria-sort="@AriaSort">
+    @* A real button, so the header can be reached with Tab and clicked with Enter or Space *@
+    <button type="button" class="lms-sort-button" @onclick="() => OnSort.InvokeAsync(Column)">
+        @Title
+        @* The arrow is decoration only; aria-sort above already says the same thing *@
+        <span class="lms-sort-arrow @(IsActive ? "is-active" : string.Empty)" aria-hidden="true">@Arrow</span>
+    </button>
+</th>
+
+@code {
+    // The text in the header, e.g. "Name"
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    // The key this header sorts by, e.g. "name". Compared with Sort.Column to find the active header.
+    [Parameter, EditorRequired]
+    public string Column { get; set; } = string.Empty;
+
+    // The table's current sort, owned by the page
+    [Parameter, EditorRequired]
+    public TableSort Sort { get; set; } = default!;
+
+    // Raised with Column when the header is clicked. Blazor re-renders the parent after it has run.
+    [Parameter]
+    public EventCallback<string> OnSort { get; set; }
+
+    private bool IsActive => Sort.Column == Column;
+
+    private string? AriaSort => !IsActive ? null : Sort.Descending ? "descending" : "ascending";
+
+    // ▲ ascending, ▼ descending, a faint ↕ on the other headers so they look clickable
+    private string Arrow => !IsActive ? "↕" : Sort.Descending ? "▼" : "▲";
+}

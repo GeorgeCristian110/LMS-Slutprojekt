@@ -18,16 +18,14 @@
    Data comes from GET api/student/dashboard through the BFF proxy (student/dashboard).
    The status colours come from SubmissionStatusStyles and the activity type colours from ActivityTypeStyles,
    so every page shows the same colours.
-   Deadlines are Swedish wall-clock time and shown as they are, uploaded times are UTC and shown in local time. *@
+   Deadlines are Swedish wall-clock time and shown as they are, uploaded times are UTC and shown in local time
+   (both through DateText). *@
 
 <PageTitle>Dashboard</PageTitle>
 
-@* Same greeting style as the teacher's dashboard: "Welcome, Sam", with the course name under it *@
-<PageHeader Title="@GreetingText.For(userName)" Subtitle="@dashboard?.CourseName">
-    <Actions>
-        <a class="btn btn-primary" href="my-assignments">Go to assignments</a>
-    </Actions>
-</PageHeader>
+@* Same greeting style as the teacher's dashboard: "Welcome, Sam", with the course name under it.
+   There is no button in the header: the way to the assignments is in the red banner and in the Deadlines card. *@
+<PageHeader Title="@GreetingText.For(userName)" Subtitle="@dashboard?.CourseName" />
 
 @if (isLoading)
 {
@@ -52,7 +50,8 @@ else if (dashboard is not null)
                 <div class="fw-semibold">@LateTitle()</div>
                 <div>@first.ActivityName — deadline was @FormatDateTime(first.EndTime). You can still submit it.</div>
             </div>
-            <a class="btn btn-danger btn-sm text-nowrap" href="assignments/@first.ActivityId">Submit now</a>
+            @* The button goes to the list of all assignments, where the student picks what to hand in *@
+            <a class="btn btn-danger btn-sm text-nowrap" href="my-assignments">Go to assignments</a>
         </div>
     }
 
@@ -288,22 +287,20 @@ else if (dashboard is not null)
             ? "You have 1 late assignment"
             : $"You have {dashboard?.OverdueAssignments.Count} late assignments";
 
+    // All the formats below come from DateText, so every page shows the same text for the same time.
+
     // Deadlines and activity times are Swedish wall-clock time and shown as they are: "Mon 5 Oct, 17:00"
-    private static string FormatDateTime(DateTime value) =>
-        value.ToString("ddd d MMM, HH:mm", CultureInfo.InvariantCulture);
+    private static string FormatDateTime(DateTime value) => DateText.WallClock(value);
 
-    private static string FormatTime(DateTime value) =>
-        value.ToString("HH:mm", CultureInfo.InvariantCulture);
+    private static string FormatTime(DateTime value) => DateText.Time(value);
 
-    private static string FormatDay(DateTime value) =>
-        value.ToString("ddd d MMM", CultureInfo.InvariantCulture);
+    private static string FormatDay(DateTime value) => DateText.Day(value);
 
-    private static string FormatDate(DateOnly value) =>
-        value.ToString("d MMM", CultureInfo.InvariantCulture);
+    // The module card is narrow, so the dates are short here: "1 Oct"
+    private static string FormatDate(DateOnly value) => DateText.ShortDate(value);
 
     // Uploaded times are UTC (set by the server), so they are shown in the browser's local time
-    private static string FormatUploaded(DateTime utc) =>
-        utc.ToLocalTime().ToString("d MMM, HH:mm", CultureInfo.InvariantCulture);
+    private static string FormatUploaded(DateTime utc) => DateText.Utc(utc);
 
     public void Dispose()
     {

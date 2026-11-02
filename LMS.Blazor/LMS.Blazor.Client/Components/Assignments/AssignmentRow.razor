@@ -6,8 +6,9 @@
     <td>
         <div class="d-flex align-items-center gap-2">
             <div>
-                @* The assignment name links to the hand-in page (US09), so the student can open and hand in the assignment *@
-                <div class="lms-cell-title"><a href="assignments/@item.ActivityId" class="text-decoration-none">@item.ActivityName</a>: <span class="lms-cell-description">@item.ActivityDescription</span></div>
+                @* The assignment name links to the hand-in page (US09), so the student can open and hand in the assignment.
+                   If the page gives OnOpen, a click opens the hand-in in a dialog instead (the link still works as a normal link). *@
+                <div class="lms-cell-title"><a href="assignments/@item.ActivityId" class="text-decoration-none" @onclick="OpenAsync" @onclick:preventDefault="OnOpen.HasDelegate">@item.ActivityName</a>: <span class="lms-cell-description">@item.ActivityDescription</span></div>
                 <div class="lms-cell-sub">@item.CourseName - @item.ModuleName</div>
             </div>
         </div>
@@ -30,6 +31,10 @@
     [Parameter]
     public StudentAssignmentDto item { get; init; } = null!;
 
+    // Optional: called with the assignment when the student clicks its name (used to open the hand-in dialog)
+    [Parameter]
+    public EventCallback<StudentAssignmentDto> OnOpen { get; set; }
+
     bool isLate = false;
     string status = "";
     string feedback = "";
@@ -51,6 +56,10 @@
         }
     }
 
+    // Tells the page that this assignment was clicked. Without OnOpen the click does nothing here
+    // and the link goes to the hand-in page as before.
+    private Task OpenAsync() => OnOpen.InvokeAsync(item);
+
     // Status badge colours
     private static string BadgeClass(string typeName) => typeName switch
     {
@@ -64,7 +73,7 @@
     private static string RowClass(bool late) =>
         late ? "bg-late" : "";
 
+    // The deadline is Swedish wall-clock time and shown as it is, in the format from DateText:
     // "Mon 12 Oct, 17:00"
-    private static string FormatDateTime(DateTime time) =>
-    time.ToString("ddd d MMM, HH:mm", CultureInfo.InvariantCulture);
+    private static string FormatDateTime(DateTime time) => DateText.WallClock(time);
 }

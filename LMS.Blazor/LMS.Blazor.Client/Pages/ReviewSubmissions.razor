@@ -175,10 +175,9 @@
         }
     }
 
-    // Same date format as the Submissions page, e.g. "Mon 5 Oct 2026, 23:50".
-    // InvariantCulture keeps English day/month names, whatever the browser's language is.
-    private static string FormatDateTime(DateTime value) =>
-    value.ToString("ddd d MMM yyyy, HH:mm", CultureInfo.InvariantCulture);
+    // The format comes from DateText, the same as on the Submissions page and the dashboards,
+    // e.g. "Mon 5 Oct, 23:50" (the year is added when it is not the current year).
+    private static string FormatDateTime(DateTime value) => DateText.WallClock(value);
 
     //Send the teacher's feed back and then reloads the page data so the new feedback and status show
     private async Task SendFeedbackAsync()

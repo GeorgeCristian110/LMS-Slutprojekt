@@ -94,9 +94,10 @@
                         <table class="table lms-table align-middle">
                             <thead>
                                 <tr>
-                                    <th>Name</th>
-                                    <th>Role</th>
-                                    <th>Course</th>
+                                    @* Sortable headers (issue #204): a click asks the API for page 1 in the new order *@
+                                    <SortableHeader Title="Name" Column="@UserSortColumns.Name" Sort="@sort" OnSort="SortByAsync" />
+                                    <SortableHeader Title="Role" Column="@UserSortColumns.Role" Sort="@sort" OnSort="SortByAsync" />
+                                    <SortableHeader Title="Course" Column="@UserSortColumns.Course" Sort="@sort" OnSort="SortByAsync" />
                                     <th></th>
                                 </tr>
                             </thead>
@@ -256,6 +257,9 @@
     private Guid? courseFilter;
     private int currentPage = 1;
 
+    // The column and direction the API sorts by (issue #204). Name ascending is the API's default order too.
+    private readonly TableSort sort = new(UserSortColumns.Name);
+
     private List<CourseOption> courses = [];
     private bool isLoading = true;
     private string? loadError;
@@ -290,7 +294,8 @@
 
     private bool HasFilters => search is not null || roleFilter is not null || courseFilter is not null;
 
-    // Builds "users?search=anna&role=Student&page=2". Values are escaped because a search text may contain & or spaces.
+    // Builds "users?page=2&pageSize=20&search=anna&role=Student&sort=name&direction=asc".
+    // Values are escaped because a search text may contain & or spaces.
     private string UsersEndpoint
     {
         get
@@ -300,6 +305,10 @@
             if (search is not null) parameters.Add($"search={Uri.EscapeDataString(search)}");
             if (roleFilter is not null) parameters.Add($"role={Uri.EscapeDataString(roleFilter)}");
             if (courseFilter is Guid courseId) parameters.Add($"courseId={courseId}");
+
+            // The sort keys are our own constants (UserSortColumns, SortDirection), so they need no escaping
+            parameters.Add($"sort={sort.Column}");
+            parameters.Add($"direction={sort.Direction}");
 
             return $"users?{string.Join("&", parameters)}";
         }
@@ -389,6 +398,15 @@
     private Task OnCourseChangedAsync(ChangeEventArgs e)
     {
         courseFilter = Guid.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        currentPage = 1;
+        return LoadUsersAsync();
+    }
+
+    // A header click (issue #204). The search and filters stay; the new order starts from page 1,
+    // because page 3 in the old order shows other users than page 3 in the new order.
+    private Task SortByAsync(string column)
+    {
+        sort.Toggle(column);
         currentPage = 1;
         return LoadUsersAsync();
     }

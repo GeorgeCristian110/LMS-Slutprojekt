@@ -1,4 +1,5 @@
 ﻿@using System.Net
+@using LMS.Blazor.Client.Services
 @using LMS.Blazor.Client.Services.ApiProxy
 @using LMS.Shared.Constants
 @using LMS.Shared.DTOs.ActivityDtos
@@ -9,12 +10,16 @@
    Loads all courses; picking a course loads its assignments (activities of type Assignment).
    The page only gets told which assignment was picked, through OnAssignmentSelected (null = none).
     Usage:
-   <AssignmentPicker OnAssignmentSelected="LoadOverviewAsync" /> *@
+   <AssignmentPicker OnAssignmentSelected="LoadOverviewAsync" />
+
+   Optional: InitialCourseId / InitialAssignmentId preselect a course and an assignment once,
+   right after the courses are loaded (for example when the dashboard links to a missing hand-in). *@
 
 @implements IDisposable
 
 @inject IApiProxyClient ApiProxyClient
 @inject NavigationManager NavigationManager
+@inject SubmissionsSelection Selection
 
 @if (IsLoadingCourses)
 {
@@ -26,39 +31,40 @@ else if (!string.IsNullOrWhiteSpace(coursesError))
 }
 else if (courses is not null)
 {
-    <div class="row g-3">
-        @*----------Courses---------*@
-        <div class="col-12 col-md-4">
-            <label class="form-label" for="picker-course">Course</label>
-            <select id="picker-course" class="form-select"
-                    @bind="selectedCourseId" @bind:after="OnCourseChangedAsync">
-                <option value="">Choose a course...</option>
-                @foreach (var course in courses)
-                {
-                    <option value="@course.Id">@course.Name</option>
-                }
-            </select>
-        </div>
+    <div class="lms-card mb-3">
+        <div class="row g-2">
+            @*----------Courses---------*@
+            <div class="col-12 col-md-4">
+                <label class="form-label" for="picker-course">Course</label>
+                <select id="picker-course" class="form-select"
+                        @bind="selectedCourseId" @bind:after="OnCourseChangedAsync">
+                    <option value="">Choose a course...</option>
+                    @foreach (var course in courses)
+                    {
+                        <option value="@course.Id">@course.Name</option>
+                    }
+                </select>
+            </div>
 
-        @*----------Assignment---------*@
-        <div class="col-12 col-md-4">
-            <label class="form-label" for="picker-assignment">Assignment</label>
-            <select id="picker-assignment" class="form-select"
-                    @bind="selectedAssignmentId" @bind:after="OnAssignmentChangedAsync"
-                    disabled="@(selectedCourseId is null || isLoadingAssignments)">
-                <option value="">
-                    @(isLoadingAssignments ? "Loading..." : "Choose an assignment...")
-                </option>
-                @foreach (var assignment in assignments)
+            @*----------Assignment---------*@
+            <div class="col-12 col-md-4">
+                <label class="form-label" for="picker-assignment">Assignment</label>
+                <select id="picker-assignment" class="form-select"
+                        @bind="selectedAssignmentId" @bind:after="OnAssignmentChangedAsync"
+                        disabled="@(selectedCourseId is null || isLoadingAssignments)">
+                    <option value="">
+                        @(isLoadingAssignments ? "Loading..." : "Choose an assignment...")
+                    </option>
+                    @foreach (var assignment in assignments)
+                    {
+                        <option value="@assignment.Id">@assignment.Name</option>
+                    }
+                </select>
+                @if (!string.IsNullOrWhiteSpace(assignmentsError))
                 {
-                    <option value="@assignment.Id">@assignment.Name</option>
+                    <div class="text-danger small mt-1">@assignmentsError</div>
                 }
-            </select>
-            @if (!string.IsNullOrWhiteSpace(assignmentsError))
-            {
-                <div class="text-danger small mt-1">@assignmentsError</div>
-                
-            }
+            </div>
         </div>
     </div>
 }
@@ -69,6 +75,14 @@ else if (courses is not null)
 @code {
     [Parameter]
     public EventCallback<Guid?> OnAssignmentSelected { get; set; }
+
+    // Optional: a course to choose as soon as the courses are loaded (null = none)
+    [Parameter]
+    public Guid? InitialCourseId { get; set; }
+
+    // Optional: an assignment of that course to choose after the course is chosen (null = none)
+    [Parameter]
+    public Guid? InitialAssignmentId { get; set; }
 
     private readonly CancellationTokenSource cts = new();
 
@@ -87,6 +101,9 @@ else if (courses is not null)
 
     // The chosen assignment
     private Guid? selectedAssignmentId;
+
+    // The preselection (InitialCourseId / InitialAssignmentId) is applied only once
+    private bool initialSelectionDone;
 
     protected override async Task OnInitializedAsync() => await LoadCoursesAsync();
 
@@ -109,6 +126,16 @@ else if (courses is not null)
 
             courses = result.OrderBy(c => c.Name).ToList();
             IsLoadingCourses = false;
+
+            //If the page asked for a course (and assignment) to be chosen, do it now that the courses are here
+            if (InitialCourseId is not null)
+        {
+            await ApplyInitialSelectionAsync();
+        }
+        else 
+        {
+            await RestoreSelectionAsync();
+        }
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
@@ -129,19 +156,58 @@ else if (courses is not null)
         }
     }
 
+    //Chooses the course and assignment the page asked for (InitialCourseId / InitialAssignmentId), once.
+    //An id that no longer exists is ignored, then the teacher simply chooses by hand.
+    private async Task ApplyInitialSelectionAsync()
+    {
+        if (initialSelectionDone || InitialCourseId is null || courses is null)
+        {
+            return;
+        }
+
+        initialSelectionDone = true;
+
+        if (!courses.Any(c => c.Id == InitialCourseId))
+        {
+            return;
+        }
+
+        // Same steps as when the teacher picks the course in the list
+        selectedCourseId = InitialCourseId;
+        await OnCourseChangedAsync();
+
+        // Then the assignment, if it is one of the course's assignments
+        if (InitialAssignmentId is { } assignmentId && assignments.Any(a => a.Id == assignmentId))
+        {
+            selectedAssignmentId = assignmentId;
+            await OnAssignmentChangedAsync();
+        }
+    }
+
     //Runs right after the teacher has picked a course
+    
     private async Task OnCourseChangedAsync()
+    {
+        //Remember the new course, the old assignment no longer applies here
+        Selection.CourseId = selectedCourseId;
+        Selection.AssignmentId = null;
+
+        //A new coruse will mean that the old assignment no longer applies so we clear it and let the page know
+        selectedAssignmentId = null;
+        await OnAssignmentSelected.InvokeAsync(null);
+
+        await LoadAssignmentsAsync();
+    }
+
+    // loads the assignments of selectedCourseId.
+    // Used both when the teacher picks a course and when the choice is restored.
+    private async Task LoadAssignmentsAsync()
     {
         // 1. We empty the old assignment list and clear all old errors
         assignments = [];
         assignmentsError = null;
 
-        // 2. A new course will mean tha tthe old assignment no longer applies. 
-        // We clear it and let the page know.
-        selectedAssignmentId = null;
-        await OnAssignmentSelected.InvokeAsync(null);
-
-        // 3. "Choose a course" was picked again: nothing to load
+        // 2. "Choose a course" was picked: nothing to load
         if (selectedCourseId is null)
         {
             return;
@@ -151,11 +217,11 @@ else if (courses is not null)
 
         try
         {
-            // 4. The course's modules is first
+            // 3. The course's modules is first
             var modules = await ApiProxyClient.GetAsync<List<ModuleDto>>(
                 $"courses/{selectedCourseId}/modules", cts.Token) ?? [];
 
-            // 5. Then each module's activites. leep only the activity that is an assignment
+            // 4. Then each module's activites. Keep only the activity that is an assignment
             foreach (var module in modules)
             {
                 var activities = await ApiProxyClient.GetAsync<List<ActivityDto>>(
@@ -165,13 +231,12 @@ else if (courses is not null)
                     ActivityTypeNames.Assignment));
             }
 
-            // 6. Latest deadlinees go first
+            // 5. Latest deadlines go first
             assignments = assignments.OrderByDescending(a => a.EndTime).ToList();
         }
-
-        // 7. catches: if its cancelled by us then ignore. 
+        // 6. catches: if its cancelled by us then ignore.
         // But if its and http error then give us an assignmentError message.
-        // 8. finally load off
+        // 7. finally load off
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
             //Navigating away will dispose the component and cancel our request.
@@ -186,12 +251,50 @@ else if (courses is not null)
         }
     }
 
-    //Runs right after the teacher has picked an assignment: we pass the choice to the page
-    private async Task OnAssignmentChangedAsync() => 
+    //Puts back what the teacher had picked before leaving the page
+    private async Task RestoreSelectionAsync()
+    {
+        //Nothing remembered or the course is gone(meaning deleted) then start empty
+        if (Selection.CourseId is not { } courseId || courses!.All(c => c.Id != courseId))
+        {
+            Selection.CourseId = null;
+            Selection.AssignmentId = null;
+            return;
+        }
+
+        selectedCourseId = courseId;
+        await LoadAssignmentsAsync();
+
+        // Only select the assignment if it is still in this course list
+        if (Selection.AssignmentId is { } assignmentId && assignments.Any(a => a.Id == assignmentId))
+        {
+            selectedAssignmentId = assignmentId;
+            await OnAssignmentSelected.InvokeAsync(selectedAssignmentId);
+        }
+        else
+        {
+            Selection.AssignmentId = null;
+        }
+    }
+
+
+    //Runs right after the teacher has picked an assignment: we remember and pass the choice to the page
+    private async Task OnAssignmentChangedAsync()
+    {
+        Selection.AssignmentId = selectedAssignmentId;
         await OnAssignmentSelected.InvokeAsync(selectedAssignmentId);
+    }
 
     public void Dispose()
     {
+        // If we leave submissions tab for anything then the choices resets.
+        //When dispose runs, navigationmanager.uri is already the page we are going to
+        if (!NavigationManager.Uri.Contains("/review"))
+        {
+            Selection.CourseId = null;
+            Selection.AssignmentId = null;
+        }
+
         cts.Cancel(); // 1. tells any running request to stop
         cts.Dispose(); // 2. then it throws the remote control away
     }

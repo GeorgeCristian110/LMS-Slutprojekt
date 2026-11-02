@@ -80,7 +80,8 @@ public class UserRepository : IUserRepository
     /// (ToPagedResultAsync), which runs a COUNT and then fetches only the rows of the asked page.
     /// So with 2000 users and page size 20, only 20 user rows are loaded into memory.
     ///
-    /// The result is ordered by name, then by id, so the pages are always the same for the same data.
+    /// The result is ordered by the sort column in the query (name when none is given), then by id,
+    /// so the pages are always the same for the same data.
     /// The users come with their CourseUsers and Course loaded, because UserService.MapToDto needs
     /// the course names. Roles are NOT loaded here; the service fetches them in a separate query.
     /// </summary>
@@ -136,13 +137,13 @@ public class UserRepository : IUserRepository
         }
 
         // Sort, then page.
-        // Paging only works with a fixed order. If two users have the same name, "ThenBy Id" decides
-        // who comes first, so the order is the same every time. Without that, SQL Server could return
-        // the rows in a different order per request, and a user could appear on two pages or on none.
+        // ApplySort (UserSortExtensions) adds the ORDER BY for the chosen column and direction, and always
+        // ends with Id, so the order is the same every time and a user can never appear on two pages.
+        // It must come before ToPagedResultAsync: the database sorts the whole filtered list first,
+        // then OFFSET/FETCH cuts out the page. Sorting after paging would only sort the 20 rows of one page.
         // ToPagedResultAsync (our extension method) now runs the two queries: COUNT, then OFFSET/FETCH.
         return await users
-            .OrderBy(u => u.Name)
-            .ThenBy(u => u.Id)
+            .ApplySort(query, _context.UserRoles, _context.Roles)
             .ToPagedResultAsync(query.Page, query.PageSize);
     }
 

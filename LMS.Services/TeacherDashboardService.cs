@@ -59,7 +59,9 @@ public class TeacherDashboardService : ITeacherDashboardService
 
         // 3. One row per student and assignment (a left join in memory): no submission means null,
         //    which the calculator turns into "Not submitted" or "Missing".
-        var assignments = await _unitOfWork.Activities.GetAssignmentsWithSubmissionsAsync(ActivityTypeNames.Assignment);
+        //    Only the assignments of the running courses are loaded (the course ids are passed to the query).
+        var assignments = await _unitOfWork.Activities.GetAssignmentsWithSubmissionsAsync(
+            ActivityTypeNames.Assignment, courseIds);
         var rows = new List<Row>();
 
         foreach (var assignment in assignments)
@@ -103,6 +105,8 @@ public class TeacherDashboardService : ITeacherDashboardService
 
         // 5. "Needs your attention": late first, then awaiting feedback (oldest first), then missing
         //    (oldest deadline first). Only a few rows, the Submissions page shows everything.
+        //    Each row also carries the course and the submission, so the page can link straight to
+        //    the review page (hand-in exists) or to the right course and assignment (missing).
         var needsAttention = late.OrderBy(r => r.Submission!.SubmittedAt)
             .Concat(awaiting.OrderBy(r => r.Submission!.SubmittedAt))
             .Concat(missing.OrderBy(r => r.Assignment.EndTime))
@@ -114,7 +118,9 @@ public class TeacherDashboardService : ITeacherDashboardService
                 r.Assignment.Name,
                 r.Status,
                 r.Submission?.SubmittedAt,
-                r.Assignment.EndTime))
+                r.Assignment.EndTime,
+                r.Assignment.Module.CourseId,
+                r.Submission?.Id))
             .ToList();
 
         // 6. The next activities in all courses (one query, Module + Course + ActivityType are included)

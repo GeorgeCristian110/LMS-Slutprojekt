@@ -1,108 +1,161 @@
-@using System.Linq
-@using System.Net
 @using LMS.Blazor.Client.Services.ApiProxy
 @using LMS.Shared.Constants
 @using LMS.Shared.DTOs.NotificationDtos
 @using Microsoft.AspNetCore.Authorization
+@using System.Linq
+@using System.Net
+@using System.Text;
+@using System.Text.Json
 
 @* Bell icon with unread badge and dropdown (US14).
    Uses <details>/<summary> so it opens and closes without JavaScript or interactivity.
-   Items are intentionally not links (for now). *@
+   Items are linked to document/feedback. On linking the dropdown is closed with JavaScript *@
 
-@attribute [Authorize(Roles = UserRoles.Teacher + "," + UserRoles.Student)]
+@attribute [Authorize(Roles = UserRoles.Student)]
 @implements IDisposable
 
 @inject IApiProxyClient ApiProxyClient;
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JS
 
-<details class="lms-bell">
-    <summary aria-label="Notifications (@UnreadCount new)">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
-        @if (UnreadCount > 0)
-        {
-            <span class="lms-bell-count">@(UnreadCount > 9 ? "9+" : UnreadCount)</span>
-        }
-    </summary>
-
-    <div class="lms-bell-menu" role="dialog" aria-label="Notifications">
-        <div class="lms-bell-header">
-            <div class="d-flex align-items-center gap-2">
-                <span class="fw-semibold">Notifications</span>
-                @if (UnreadCount > 0)
-                {
-                    <span class="lms-badge lms-tone-primary">@UnreadCount new</span>
-                }
-            </div>
-
+<AuthorizeView Roles="@UserRoles.Student">
+    <details class="lms-bell">
+        <summary aria-label="Notifications (@UnreadCount new)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
             @if (UnreadCount > 0)
             {
-                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none"
-                        @onclick="OnMarkAllRead">
-                    Mark all as read
-                </button>
+                <span class="lms-bell-count">@(UnreadCount > 9 ? "9+" : UnreadCount)</span>
             }
-        </div>
+        </summary>
 
-        @if (notifications?.Count() == 0)
-        {
-            <div class="lms-state">
-                <span class="lms-icon-tile lms-tone-muted">✓</span>
-                <span class="fw-semibold">No notifications</span>
-                <span class="text-secondary small">You’re all caught up.</span>
-            </div>
-        }
-        else
-        {
-            @if (notifications?.Any() ?? false) {
-                @foreach (var item in notifications.OrderByDescending(n => n.CreatedAt).Take(MaxItems))
+        <div class="lms-bell-menu" role="dialog" aria-label="Notifications">
+            <div class="lms-bell-header">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="fw-semibold">Notifications</span>
+                    @if (UnreadCount > 0)
+                    {
+                        <span class="lms-badge lms-tone-primary">@UnreadCount new</span>
+                    }
+                </div>
+
+                @if (UnreadCount > 0)
                 {
-                    <div class="lms-bell-item @(item.IsRead ? "" : "is-new")">
-                        <span class="lms-icon-tile @(item.EventType == NotificationEventTypes.Feedback ? "lms-tone-info" : "lms-tone-purple")">
-                            @(item.EventType == NotificationEventTypes.Feedback ? "F" : "D")
-                        </span>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none"
+                            @onclick="OnMarkAllRead">
+                        Mark all as read
+                    </button>
+                }
+            </div>
 
-                        <div class="flex-grow-1 min-w-0">
-                            <div class="lms-bell-item-title">@item.Message</div>
-                            @* <div class="lms-bell-item-sub">@item.Subtitle</div>  *@
-                            <div class="lms-bell-item-time">@TimeFormat.Relative(item.CreatedAt)</div>
+            @* Dropdown listing *@
+            @if (notifications?.Count() == 0)
+            {
+                <div class="lms-state">
+                    <span class="lms-icon-tile lms-tone-muted">✓</span>
+                    <span class="fw-semibold">No notifications</span>
+                    <span class="text-secondary small">You’re all caught up.</span>
+                </div>
+            }
+            else
+            {
+                @if (notifications?.Any() ?? false) {
+                    @foreach (var item in notifications.OrderByDescending(n => n.CreatedAt).Take(MaxItems))
+                    {
+                        <div class="lms-bell-item @(item.IsRead ? "" : "is-new")" @onclick="() => OnNotificationClick(item.Id)">
+                            <span class="lms-icon-tile @(item.EventType == NotificationEventTypes.Feedback ? "lms-tone-info" : "lms-tone-purple")">
+                                @(item.EventType == NotificationEventTypes.Feedback ? "F" : "D")
+                            </span>
+                            <div class="flex-grow-1 min-w-0">
+                                <div class="lms-bell-item-title">@item.Message</div>
+                                <div class="lms-bell-item-time">@TimeFormat.Relative(item.CreatedAt)</div>
+                            </div>
+
+                            @if (!item.IsRead)
+                            {
+                                <span class="lms-bell-new-dot" aria-label="New"></span>
+                            }
                         </div>
+                    }
+                }
 
-                        @if (!item.IsRead)
-                        {
-                            <span class="lms-bell-new-dot" aria-label="New"></span>
-                        }
-                    </div>
+                @* Dropdown footer *@
+                @if (!string.IsNullOrWhiteSpace(errorMessage))
+                {
+                    <div class="lms-bell-footer">@errorMessage</div>
+                }
+                else
+                {
+                    <div class="lms-bell-footer">Showing the @MaxItems latest notifications</div>
                 }
             }
-            <div class="lms-bell-footer">Showing the @MaxItems latest notifications</div>
-        }
-    </div>
-</details>
+        </div>
+    </details>
+</AuthorizeView>
 
 @code {
-    private int MaxItems = 10;  // Not in use right now!
+    /// <summary> Max number of notifications that is be fetched and show in the dropdown.</summary>
+    private static int MaxItems = 10;
+    /// <summary> How often the notifications are refreshed in minutes</summary>
+    private static int RefreshIntervalInMinutes = 1;  // 
 
-    private IEnumerable<NotificationDto>? notifications;
-    private readonly CancellationTokenSource componentCancellation = new();
+    private IEnumerable<NotificationDto>? notifications;  // List of the students notifications
+    private readonly CancellationTokenSource cto = new();
+
+    /// <summary> Timer used to trigger periodic notification refreshes at the configured interval.</summary>
+    private readonly PeriodicTimer notificationTimer = 
+        new(TimeSpan.FromMinutes(RefreshIntervalInMinutes));
+    /// <summary> Represents the background task that periodically refreshes the notification list.</summary>
+    private Task? notificationRefreshTask;
 
     private string errorMessage = "";  // Not in use - where to show messages?
-    private bool isLoading = true;
-    private int UnreadCount = 0;
-    // private int TotalCount = 0;
+    private bool isLoading = true;  // Needed by IDisposable!
+    private int UnreadCount = 0;  // Number of unread notifications
 
     protected override async Task OnInitializedAsync()
     {
         isLoading = true;
 
         // Load the users notifications
+        await GetNotifications();
+
+        isLoading = false;
+
+        // Start the periodic refresh of notifications
+        notificationRefreshTask = RefreshNotificationsAsync();
+    }
+
+    /// <summary> Periodically retrieves the latest notifications.</summary>
+    private async Task RefreshNotificationsAsync()
+    {
         try
         {
+            while (await notificationTimer.WaitForNextTickAsync(cto.Token))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await GetNotifications();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException) when (cto.IsCancellationRequested)
+        {
+            // The component is being disposed.
+        }
+    }
+
+    /// <summary> Retrieves the latest notifications for the current student and updates the unread count.</summary>
+    private async Task GetNotifications()
+    {
+        try
+        {
+            // "notifications?nbrItems=10" - max number of items to return
             var result = await ApiProxyClient.GetAsync<IEnumerable<NotificationDto>>(
-                "notifications", componentCancellation.Token);
+                $"notifications?nbrItems={MaxItems}", cto.Token);
 
             // The server-side prerender service deliberately returns null. Keep
             // showing the loading state until WebAssembly runs this method again.
@@ -112,7 +165,7 @@
             notifications = result;
             UpdateNotificationCouter();
         }
-        catch (OperationCanceledException) when (componentCancellation.IsCancellationRequested)
+        catch (OperationCanceledException) when (cto.IsCancellationRequested)
         {
             // Navigating away disposes the component and cancels its request.
             return;
@@ -133,11 +186,69 @@
             errorMessage = "The assignments could not be loaded. Please try again later.";
         }
 
-        isLoading = false;
-        StateHasChanged();  // Update GUI
     }
 
-    /// <summary> Update all notifications to be read</summary>
+    /// <summary> Redirect to target, mark as is read and the notification dropdown is closed</summary>
+    private async Task OnNotificationClick(Guid notificationId)
+    {
+        // Close notification dropdown - needs: @inject IJSRuntime JS
+        await JS.InvokeVoidAsync("eval", "document.querySelector('.lms-bell')?.removeAttribute('open')");
+
+        if (notifications is not null)
+        {
+            var item = notifications?.FirstOrDefault(n => n.Id == notificationId);
+            if (item is not null)
+            {
+                // Set clicked notification to is read if needed
+                if (item.IsRead == false)
+                {
+                    await UpdateIsRead(item);
+                }
+
+                // Redirect to target
+                if (item.EventType == NotificationEventTypes.Feedback)
+                {
+                    NavigationManager.NavigateTo("/my-assignments");
+                }
+                else if (item.EventType == NotificationEventTypes.Document)
+                {
+                    NavigationManager.NavigateTo("/my-documents");
+                }
+            }
+        }
+    }
+
+    /// <summary> Sets clicked notification to is read</summary>
+    private async Task UpdateIsRead(NotificationDto dto)
+    {
+        if (dto is not null && dto.IsRead == false)
+        {
+            try
+            {
+                var updateDto = new UpdateNotificationDto()
+                {
+                    Id = dto.Id,
+                    IsRead = true
+                };
+                var json = JsonSerializer.Serialize(updateDto);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                await ApiProxyClient.SendAsync<object>(
+                        HttpMethod.Patch, $"notifications/{dto.Id}", content, cto.Token);
+
+                // Update the local copy of the notification to be is read
+                dto.IsRead = true;
+                UpdateNotificationCouter();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Failed to set all notifications as IsRead. Error: {e.Message}");
+                errorMessage = "Failed to set the notification as is read";
+            }
+        }
+    }
+
+    /// <summary> Update all notifications to is read</summary>
     private async Task OnMarkAllRead()
     {
         if (notifications is not null)
@@ -145,22 +256,23 @@
             try
             {
                 await ApiProxyClient.SendAsync<object>(
-                    HttpMethod.Patch, "notifications/allRead", null, componentCancellation.Token);
+                    HttpMethod.Patch, "notifications/allRead", null, cto.Token);
 
+                // Update the local copy of the notification to be is read
                 notifications = notifications.Select(item => item with { IsRead = true }).ToList();
                 UpdateNotificationCouter();
             }
             catch (Exception e)
             {
                 Console.WriteLine($"Failed to set all notifications as IsRead. Error: {e.Message}");
+                errorMessage = "Failed to set all notifications as IsRead";
             }
         }
     }
 
-    /// <summary> Update counter for </summary>
+    /// <summary> Update counter for unread notifications</summary>
     private void UpdateNotificationCouter()
     {
-        //TotalCount = notifications?.Count() > 0 ? notifications.Count() : 0;
         UnreadCount = notifications?.Count() > 0 ? notifications!.Count(notification => !notification.IsRead) : 0;
     }
 
@@ -168,23 +280,16 @@
     public static class TimeFormat
     {
         /// <summary>"1 h ago", "Today 08:12", "Yesterday", "5 Sep".</summary>
-        public static string Relative(DateTime value)
-        {
-            var diff = DateTime.Now - value;
-
-            if (diff.TotalMinutes < 1) return "Just now";
-            if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} min ago";
-            if (diff.TotalHours < 6) return $"{(int)diff.TotalHours} h ago";
-            if (value.Date == DateTime.Today) return $"Today {value:HH:mm}";
-            if (value.Date == DateTime.Today.AddDays(-1)) return "Yesterday";
-
-            return value.ToString("d MMM", System.Globalization.CultureInfo.InvariantCulture);
-        }
+        // The time of a notification is UTC from the server. DateText converts it to local time
+        // before comparing it with the clock of the browser.
+        public static string Relative(DateTime value) =>
+            LMS.Blazor.Client.Helpers.DateText.Relative(value);
     }
 
     public void Dispose()
     {
-        componentCancellation.Cancel();
-        componentCancellation.Dispose();
+        cto.Cancel();
+        notificationTimer.Dispose();
+        cto.Dispose();
     }
 }

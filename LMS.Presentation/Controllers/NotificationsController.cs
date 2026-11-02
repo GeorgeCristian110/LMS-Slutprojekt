@@ -10,7 +10,6 @@ using System.Security.Claims;
 
 namespace LMS.Presentation.Controllers;
 
-//[Route("api/notifications")]
 [Route("api")]
 [ApiController]
 [Authorize(Roles = UserRoles.Teacher + "," + UserRoles.Student)]
@@ -31,8 +30,8 @@ public class NotificationsController(IServiceManager serviceManager) : Controlle
         if (userId is null)
             return Unauthorized();
 
-        if (nbrItems > maxItems)
-            throw new BadRequestException($"Max {maxItems} notifications can be requested for.");
+        if (nbrItems <= 0 || nbrItems > maxItems)
+            throw new BadRequestException($"Number of notifications must be between 1 and {maxItems}.");
 
         var notifictions = await _serviceManager.NotificationService.GetByStudentIdAsync(userId, nbrItems);
 

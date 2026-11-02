@@ -11,7 +11,10 @@
 
 @* Teacher overview of all courses, with an inline form to create and edit a course.
    Built with the shared components in Components/ (PageHeader, SuccessAlert, LoadingSkeleton, ErrorState,
-   EmptyState, StatusBadge). Shared styling comes from wwwroot/css/lms.css. *@
+   EmptyState, StatusBadge). Shared styling comes from wwwroot/css/lms.css.
+   The course name opens the modules of the course. The page can also be opened with ?edit={courseId}
+   (from the "Edit course" button on the modules page): then the edit form of that course opens at once,
+   and Save / Cancel return to the modules page. *@
 @attribute [Authorize(Roles = UserRoles.Teacher)]
 @implements IDisposable
 
@@ -172,7 +175,10 @@
 
                             <tr>
                                 <td>
-                                    <div class="lms-cell-title">@course.Name</div>
+                                    @* The course name opens the modules of the course (US04) *@
+                                    <div class="lms-cell-title">
+                                        <a class="text-decoration-none" href="courses/@course.Id/modules">@course.Name</a>
+                                    </div>
                                     @if (!string.IsNullOrWhiteSpace(course.Description))
                                     {
                                         <div class="lms-cell-sub">@course.Description</div>
@@ -182,9 +188,7 @@
                                 <td class="text-nowrap">@FormatDate(course.EndDate)</td>
                                 <td class="text-end text-nowrap">
                                     <StatusBadge Text="@status.Text" Tone="@status.Tone" />
-                                    @* Links to the module page of this course (US04). *@
-                                    <a class="btn btn-link btn-sm text-decoration-none ms-2" href="courses/@course.Id/modules">Modules</a>
-                                    <button type="button" class="btn btn-link btn-sm text-decoration-none" @onclick="() => StartEdit(course)">Edit</button>
+                                    <button type="button" class="btn btn-link btn-sm text-decoration-none ms-2" @onclick="() => StartEdit(course)">Edit</button>
                                 </td>
                             </tr>
                         }
@@ -197,6 +201,13 @@
 
 @code {
     private readonly CancellationTokenSource cts = new();
+
+    // Optional ?edit={courseId} in the address: open the edit form of that course right away
+    [SupplyParameterFromQuery(Name = "edit")]
+    public Guid? EditCourseId { get; set; }
+
+    // Set when the edit form was opened from the modules page: Save / Cancel then go back to that page
+    private Guid? returnToModulesOf;
 
     private List<CourseDto>? courses;
     private bool isLoading = true;
@@ -245,7 +256,18 @@
         }
     }
 
-    protected override async Task OnInitializedAsync() => await LoadCoursesAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCoursesAsync();
+
+        // Opened with ?edit={courseId}: show the edit form of that course. An unknown id is ignored.
+        // (During the server prerender the courses are not loaded yet, then this runs again in WebAssembly.)
+        if (EditCourseId is { } editId && courses?.FirstOrDefault(c => c.Id == editId) is { } courseToEdit)
+        {
+            returnToModulesOf = editId;
+            StartEdit(courseToEdit);
+        }
+    }
 
     private Task OnSearchAsync(string? value)
     {
@@ -341,6 +363,13 @@
         editingId = null;
         form = new CourseFormModel();
         ResetFormErrors();
+
+        // The form was opened from the modules page: go back there
+        if (returnToModulesOf is { } courseId)
+        {
+            returnToModulesOf = null;
+            NavigationManager.NavigateTo($"courses/{courseId}/modules");
+        }
     }
 
     private void CreateEditContext()
@@ -454,8 +483,8 @@
             $"Account/Login?returnUrl={Uri.EscapeDataString(NavigationManager.Uri)}",
             forceLoad: true);
 
-    private static string FormatDate(DateOnly date) =>
-        date.ToString("d MMM yyyy", CultureInfo.InvariantCulture);
+    // The format comes from DateText, so every page shows dates the same way: "1 Oct 2026"
+    private static string FormatDate(DateOnly date) => DateText.Date(date);
 
     // Status is calculated from today's date: Upcoming / Active / Finished (as in the mockups).
     // Tone is the badge colour name used by StatusBadge.
