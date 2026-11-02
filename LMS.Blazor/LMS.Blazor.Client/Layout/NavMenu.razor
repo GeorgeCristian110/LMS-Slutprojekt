@@ -15,42 +15,41 @@
         <p class="lms-sidebar-title">Teaching</p>
         @* Dashboard (US13): what needs the teacher's attention right now *@
         <NavLink class="lms-nav-link" href="teacher-dashboard">
-            <span class="lms-nav-glyph">O</span> Dashboard
+            <NavIcon Name="dashboard" /> Dashboard
         </NavLink>
         @* Courses is also active on the activities of a module (modules/{id}/activities) *@
         <NavLink class="lms-nav-link" href="courses" @attributes="TeacherCoursesExtra()">
-            <span class="lms-nav-glyph">C</span> Courses
+            <NavIcon Name="courses" /> Courses
         </NavLink>
         <NavLink class="lms-nav-link" href="submissions">
-            <span class="lms-nav-glyph">S</span> Submissions
+            <NavIcon Name="submissions" /> Submissions
         </NavLink>
         <NavLink class="lms-nav-link" href="users">
-            <span class="lms-nav-glyph">U</span> Users
+            <NavIcon Name="users" /> Users
         </NavLink>
     </AuthorizeView>
 
     @* Student menu. Modules opens the modules of the student's own course. *@
     <AuthorizeView Roles="@UserRoles.Student" Context="studentContext">
         <p class="lms-sidebar-title">My learning</p>
-        @* Dashboard (US12): overview of what matters most right now.
-           The glyph is "O" (overview) because "D" is already used by Documents. *@
+        @* Dashboard (US12): overview of what matters most right now *@
         <NavLink class="lms-nav-link" href="dashboard">
-            <span class="lms-nav-glyph">O</span> Dashboard
+            <NavIcon Name="dashboard" /> Dashboard
         </NavLink>
         <NavLink class="lms-nav-link" href="my-course">
-            <span class="lms-nav-glyph">C</span> My course
+            <NavIcon Name="courses" /> My course
         </NavLink>
         @* my-modules redirects to courses/{id}/modules, so Modules is active there too *@
         <NavLink class="lms-nav-link" href="my-modules" @attributes="StudentModulesExtra()">
-            <span class="lms-nav-glyph">M</span> Modules
+            <NavIcon Name="modules" /> Modules
         </NavLink>
         @* my-documents redirects to courses/{id}/documents, so Documents is active there too *@
         <NavLink class="lms-nav-link" href="my-documents" @attributes="StudentDocumentsExtra()">
-            <span class="lms-nav-glyph">D</span> Documents
+            <NavIcon Name="documents" /> Documents
         </NavLink>
         @* Assignments is also active on the hand-in page (assignments/{id}) *@
         <NavLink class="lms-nav-link" href="my-assignments" @attributes="StudentAssignmentsExtra()">
-            <span class="lms-nav-glyph">A</span> Assignments
+            <NavIcon Name="assignments" /> Assignments
         </NavLink>
     </AuthorizeView>
 </nav>
