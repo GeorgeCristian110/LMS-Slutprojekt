@@ -13,6 +13,12 @@ namespace LMS.API.Services;
 //  }
 //}
 // The seeded users (DemoUser@Lms.com and teacher@lms.com) use the same password.
+//
+// Outside Development (for example on Azure) nothing runs unless these settings are on.
+// On App Service they are app settings with "__" instead of ":" (Database__MigrateOnStartup).
+//   "Database:MigrateOnStartup": true  -> apply missing EF migrations when the API starts
+//   "Database:SeedData": true          -> create the roles and the two demo users there too
+// Both default to false, so local development behaves as before.
 
 
 internal class DataSeedService : IHostedService
@@ -39,10 +45,25 @@ internal class DataSeedService : IHostedService
         using var scope = serviceProvider.CreateScope();
 
         var env = scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>();
-        if (!env.IsDevelopment()) return;
+
+        // GetValue<bool> returns false when the key is missing.
+        var migrateOnStartup = configuration.GetValue<bool>("Database:MigrateOnStartup");
+        var seedData = env.IsDevelopment() || configuration.GetValue<bool>("Database:SeedData");
+
+        if (!migrateOnStartup && !seedData) return;
 
         ApplicationDbContext context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>()
                             ?? throw new ArgumentNullException();
+
+        // Migrations first: the seed below needs the Identity tables.
+        // MigrateAsync only applies migrations that are not yet in __EFMigrationsHistory.
+        if (migrateOnStartup)
+        {
+            logger.LogInformation("Applying pending database migrations");
+            await context.Database.MigrateAsync(cancellationToken);
+        }
+
+        if (!seedData) return;
 
         roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>()
                             ?? throw new ArgumentNullException();
